@@ -6,10 +6,12 @@ export default function ProductGrid({
   products,
   emptyTitle = "No products found",
   emptyDescription = "Try adjusting your search or filters to find what you're looking for.",
+  emptyAction,
 }: {
   products: Product[];
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: React.ReactNode;
 }) {
   if (products.length === 0) {
     return (
@@ -19,6 +21,7 @@ export default function ProductGrid({
         </div>
         <h3 className="font-serif text-lg font-medium text-foreground">{emptyTitle}</h3>
         <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{emptyDescription}</p>
+        {emptyAction && <div className="mt-5">{emptyAction}</div>}
       </div>
     );
   }

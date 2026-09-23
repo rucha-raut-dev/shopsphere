@@ -60,6 +60,13 @@ export default function ShopClient({
   const resetFilters = () =>
     setFilters({ category: null, maxPrice: PRICE_CEILING, minRating: 0 });
 
+  const filtersActive =
+    filters.category !== null || filters.maxPrice !== PRICE_CEILING || filters.minRating !== 0;
+  const clearAll = () => {
+    resetFilters();
+    setQuery("");
+  };
+
   return (
     <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
       <div className="hidden lg:block">
@@ -93,6 +100,17 @@ export default function ShopClient({
           products={results}
           emptyTitle={query ? `No results for "${query}"` : "No products match your filters"}
           emptyDescription="Try a different search term, or reset your filters to see more products."
+          emptyAction={
+            (query || filtersActive) && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              >
+                Clear search &amp; filters
+              </button>
+            )
+          }
         />
       </div>
 
