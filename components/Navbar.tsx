@@ -77,8 +77,31 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="shrink-0 font-serif text-xl font-semibold tracking-tight text-foreground">
-          Shop<span className="text-primary">Sphere</span>
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 64 64"
+            aria-hidden="true"
+            className="shrink-0"
+          >
+            <rect width="64" height="64" rx="14" fill="#1F3A2E" />
+            <text
+              x="32"
+              y="46"
+              textAnchor="middle"
+              fontFamily="Georgia, 'Times New Roman', serif"
+              fontSize="42"
+              fontWeight="700"
+              fill="#FAF9F6"
+            >
+              S
+            </text>
+            <circle cx="49" cy="15" r="5.5" fill="#C97B5A" />
+          </svg>
+          <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
+            Shop<span className="text-primary">Sphere</span>
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

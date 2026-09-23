@@ -2,6 +2,7 @@ import Hero from "@/components/Hero";
 import SectionHeading from "@/components/SectionHeading";
 import CategoryCard from "@/components/CategoryCard";
 import ProductGrid from "@/components/ProductGrid";
+import SaleBanner from "@/components/SaleBanner";
 import Newsletter from "@/components/Newsletter";
 import { categories } from "@/data/categories";
 import { products } from "@/data/products";
@@ -50,34 +51,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-border bg-secondary/30">
-        <div className="container-page grid items-center gap-8 py-12 lg:grid-cols-2">
-          <div>
-            <p className="mb-3 inline-flex items-center rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
-              Limited Time Offer
-            </p>
-            <h2 className="font-serif text-3xl font-medium text-foreground sm:text-4xl">
-              Spring Sale is Live
-            </h2>
-            <p className="mt-3 max-w-md text-sm text-muted-foreground">
-              Enjoy up to 40% off on selected collections across fashion,
-              accessories and home essentials — for a limited time only.
-            </p>
-            <a
-              href="/shop"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-            >
-              Explore Deals
-            </a>
-          </div>
-          <div className="relative mx-auto flex h-40 w-40 items-center justify-center rounded-full border-8 border-accent/15 bg-accent text-white shadow-lift sm:h-48 sm:w-48">
-            <div className="text-center">
-              <p className="text-3xl font-bold sm:text-4xl">40%</p>
-              <p className="text-xs font-semibold uppercase tracking-wide">Off</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <SaleBanner />
 
       <section className="container-page py-14 sm:py-20">
         <SectionHeading
