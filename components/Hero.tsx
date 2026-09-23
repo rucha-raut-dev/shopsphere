@@ -50,7 +50,7 @@ export default function Hero() {
         <div className="relative animate-fade-in">
           <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-muted shadow-lift sm:aspect-[5/6]">
             <Image
-              src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=80&auto=format&fit=crop"
+              src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGZhc2hpb258ZW58MHx8MHx8fDA%3D%3D"
               alt="Model wearing a curated ShopSphere outfit"
               fill
               priority
