@@ -72,6 +72,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = (productId: string, quantity = 1, color?: string, size?: string) => {
     const max = maxFor(productId);
+
+    if (max <= 0) {
+      showToast("Sorry, that item is out of stock", "error");
+      return;
+    }
+
     const available = max - quantityInCart(lines, productId);
 
     if (available <= 0) {

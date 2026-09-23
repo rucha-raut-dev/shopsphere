@@ -5,12 +5,14 @@ import Link from "next/link";
 import { ShoppingBag, Star } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { discountPercent, formatPrice } from "@/lib/utils";
+import { getStockStatus } from "@/lib/stock";
 import WishlistButton from "@/components/WishlistButton";
 import { useCart } from "@/context/CartContext";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
   const discount = discountPercent(product.price, product.originalPrice);
+  const outOfStock = getStockStatus(product.stock).state === "out";
 
   return (
     <div className="group relative flex flex-col">
@@ -37,9 +39,14 @@ export default function ProductCard({ product }: { product: Product }) {
               New
             </span>
           )}
-          {discount && (
+          {discount && !outOfStock && (
             <span className="rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
               -{discount}%
+            </span>
+          )}
+          {outOfStock && (
+            <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+              Sold out
             </span>
           )}
         </div>
@@ -58,16 +65,17 @@ export default function ProductCard({ product }: { product: Product }) {
         >
           <button
             type="button"
+            disabled={outOfStock}
             onClick={() =>
               // Use the same defaults as the product page so the same item
               // never ends up as two separate cart lines.
               addToCart(product.id, 1, product.colors?.[0], product.sizes?.[0])
             }
             aria-label={`Add ${product.name} to cart`}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground/95 py-2.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lift backdrop-blur transition-colors hover:bg-primary focus-visible:bg-primary"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground/95 py-2.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lift backdrop-blur transition-colors hover:bg-primary focus-visible:bg-primary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-foreground/95"
           >
             <ShoppingBag className="h-3.5 w-3.5" />
-            Add to Cart
+            {outOfStock ? "Sold out" : "Add to Cart"}
           </button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ShoppingBag, Zap } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { getStockStatus } from "@/lib/stock";
 import QuantitySelector from "@/components/QuantitySelector";
 import WishlistButton from "@/components/WishlistButton";
 import { useCart } from "@/context/CartContext";
@@ -15,6 +16,8 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
   const [color, setColor] = useState(product.colors?.[0]);
   const [size, setSize] = useState(product.sizes?.[0]);
   const [quantity, setQuantity] = useState(1);
+
+  const outOfStock = getStockStatus(product.stock).state === "out";
 
   return (
     <div className="space-y-6">
@@ -70,31 +73,45 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
         </div>
       )}
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">Quantity</h3>
-        <QuantitySelector quantity={quantity} onChange={setQuantity} max={product.stock ?? 10} />
-      </div>
+      {!outOfStock && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">Quantity</h3>
+          <QuantitySelector quantity={quantity} onChange={setQuantity} max={product.stock ?? 10} />
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={() => addToCart(product.id, quantity, color, size)}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 hover:bg-primary-light"
-        >
-          <ShoppingBag className="h-4 w-4" />
-          Add to Cart
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            addToCart(product.id, quantity, color, size);
-            router.push("/checkout");
-          }}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-foreground/20 px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-        >
-          <Zap className="h-4 w-4" />
-          Buy Now
-        </button>
+        {outOfStock ? (
+          <button
+            type="button"
+            disabled
+            className="inline-flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-muted px-6 py-3.5 text-sm font-semibold text-muted-foreground"
+          >
+            Out of stock
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => addToCart(product.id, quantity, color, size)}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 hover:bg-primary-light"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Add to Cart
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                addToCart(product.id, quantity, color, size);
+                router.push("/checkout");
+              }}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-foreground/20 px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              <Zap className="h-4 w-4" />
+              Buy Now
+            </button>
+          </>
+        )}
         <WishlistButton productId={product.id} variant="pill" />
       </div>
     </div>
