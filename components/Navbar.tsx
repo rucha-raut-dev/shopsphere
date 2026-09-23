@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useAuth } from "@/context/AuthContext";
 import MobileMenu from "@/components/MobileMenu";
+import SearchSuggestions from "@/components/SearchSuggestions";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -139,27 +140,33 @@ export default function Navbar() {
                   : "pointer-events-none invisible scale-95 opacity-0"
               )}
             >
-              <form
-                onSubmit={submitSearch}
-                className="flex w-72 items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 shadow-lift"
-              >
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  placeholder="Search for products..."
-                  aria-label="Search products"
-                  className="w-full border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground focus:ring-0"
-                />
-                <button
-                  type="submit"
-                  className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+              <div className="w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
+                <form
+                  onSubmit={submitSearch}
+                  className="flex items-center gap-2 p-1.5 pl-4"
                 >
-                  Go
-                </button>
-              </form>
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    placeholder="Search for products..."
+                    aria-label="Search products"
+                    className="w-full border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground focus:ring-0"
+                  />
+                  <button
+                    type="submit"
+                    className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                  >
+                    Go
+                  </button>
+                </form>
+                <SearchSuggestions
+                  query={searchValue}
+                  onNavigate={() => setSearchOpen(false)}
+                />
+              </div>
             </div>
           </div>
 
