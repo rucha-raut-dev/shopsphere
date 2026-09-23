@@ -12,6 +12,8 @@ import { products } from "@/data/products";
 import { useToast } from "@/context/ToastContext";
 
 const STORAGE_KEY = "shopsphere-cart";
+// Fallback cap for products that don't define `stock`.
+const DEFAULT_MAX_QTY = 99;
 
 type CartContextValue = {
   lines: CartLine[];
@@ -28,6 +30,19 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 function sameLine(a: CartLine, productId: string, color?: string, size?: string) {
   return a.productId === productId && a.color === color && a.size === size;
+}
+
+// Stock is tracked per product, so the cap applies across all of its
+// color/size variants combined, not per individual cart line.
+function maxFor(productId: string): number {
+  const product = products.find((p) => p.id === productId);
+  return product?.stock ?? DEFAULT_MAX_QTY;
+}
+
+function quantityInCart(lines: CartLine[], productId: string): number {
+  return lines
+    .filter((l) => l.productId === productId)
+    .reduce((sum, l) => sum + l.quantity, 0);
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
@@ -56,18 +71,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [lines, isHydrated]);
 
   const addToCart = (productId: string, quantity = 1, color?: string, size?: string) => {
+    const max = maxFor(productId);
+    const available = max - quantityInCart(lines, productId);
+
+    if (available <= 0) {
+      showToast(`Only ${max} in stock, and they're all in your cart`, "info");
+      return;
+    }
+
+    const toAdd = Math.min(quantity, available);
+
     setLines((prev) => {
       const existing = prev.find((l) => sameLine(l, productId, color, size));
       if (existing) {
         return prev.map((l) =>
           sameLine(l, productId, color, size)
-            ? { ...l, quantity: l.quantity + quantity }
+            ? { ...l, quantity: l.quantity + toAdd }
             : l
         );
       }
-      return [...prev, { productId, quantity, color, size }];
+      return [...prev, { productId, quantity: toAdd, color, size }];
     });
-    showToast("Added to cart", "success");
+
+    if (toAdd < quantity) {
+      showToast(`Only ${max} in stock, added ${toAdd}`, "info");
+    } else {
+      showToast("Added to cart", "success");
+    }
   };
 
   const removeFromCart = (productId: string, color?: string, size?: string) => {
@@ -75,13 +105,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateQuantity = (productId: string, quantity: number, color?: string, size?: string) => {
-    setLines((prev) =>
-      prev
-        .map((l) =>
-          sameLine(l, productId, color, size) ? { ...l, quantity } : l
-        )
-        .filter((l) => l.quantity > 0)
-    );
+    setLines((prev) => {
+      const othersInCart = prev
+        .filter((l) => l.productId === productId && !sameLine(l, productId, color, size))
+        .reduce((sum, l) => sum + l.quantity, 0);
+      const room = Math.max(maxFor(productId) - othersInCart, 1);
+      const next = quantity <= 0 ? 0 : Math.min(quantity, room);
+
+      return prev
+        .map((l) => (sameLine(l, productId, color, size) ? { ...l, quantity: next } : l))
+        .filter((l) => l.quantity > 0);
+    });
   };
 
   const clearCart = () => setLines([]);

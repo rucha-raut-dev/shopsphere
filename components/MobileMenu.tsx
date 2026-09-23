@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -20,6 +22,18 @@ export default function MobileMenu({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
+  const [searchValue, setSearchValue] = useState("");
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchValue.trim();
+    if (!q) return;
+    router.push(`/shop?q=${encodeURIComponent(q)}`);
+    setSearchValue("");
+    onClose();
+  };
+
   return (
     <div
       className={cn(
@@ -53,6 +67,29 @@ export default function MobileMenu({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        <form onSubmit={submitSearch} className="px-4 pt-4" role="search">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Search for products..."
+              aria-label="Search products"
+              tabIndex={open ? 0 : -1}
+              className="w-full border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground focus:ring-0"
+            />
+            <button
+              type="submit"
+              tabIndex={open ? 0 : -1}
+              className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+            >
+              Go
+            </button>
+          </div>
+        </form>
+
         <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
           {LINKS.map((link) => (
             <Link

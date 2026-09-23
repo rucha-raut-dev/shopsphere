@@ -14,18 +14,24 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="group relative flex flex-col">
-      <Link
-        href={`/products/${product.slug}`}
-        className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-muted"
-      >
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          sizes="(min-width: 1280px) 22vw, (min-width: 768px) 30vw, 45vw"
-          className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
-        />
-        <div className="absolute left-3 top-3 flex flex-col gap-1.5">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-muted">
+        {/* Image link. The buttons below are siblings (not children) of this
+            link, so we no longer nest interactive elements inside an <a>. */}
+        <Link
+          href={`/products/${product.slug}`}
+          aria-label={product.name}
+          className="absolute inset-0 block"
+        >
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            sizes="(min-width: 1280px) 22vw, (min-width: 768px) 30vw, 45vw"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
+          />
+        </Link>
+
+        <div className="pointer-events-none absolute left-3 top-3 flex flex-col gap-1.5">
           {product.newArrival && (
             <span className="rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
               New
@@ -37,23 +43,34 @@ export default function ProductCard({ product }: { product: Product }) {
             </span>
           )}
         </div>
+
         <div className="absolute right-3 top-3">
           <WishlistButton productId={product.id} />
         </div>
-        <div className="absolute inset-x-3 bottom-3 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+
+        {/* Always visible on touch / small screens; on md+ it reveals on hover
+            OR keyboard focus (group-focus-within) so it's reachable by everyone. */}
+        <div
+          className="absolute inset-x-3 bottom-3 transition-all duration-300
+            md:translate-y-2 md:opacity-0
+            md:group-hover:translate-y-0 md:group-hover:opacity-100
+            md:group-focus-within:translate-y-0 md:group-focus-within:opacity-100"
+        >
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              addToCart(product.id, 1);
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground/95 py-2.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lift backdrop-blur transition-colors hover:bg-primary"
+            onClick={() =>
+              // Use the same defaults as the product page so the same item
+              // never ends up as two separate cart lines.
+              addToCart(product.id, 1, product.colors?.[0], product.sizes?.[0])
+            }
+            aria-label={`Add ${product.name} to cart`}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground/95 py-2.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lift backdrop-blur transition-colors hover:bg-primary focus-visible:bg-primary"
           >
             <ShoppingBag className="h-3.5 w-3.5" />
             Add to Cart
           </button>
         </div>
-      </Link>
+      </div>
 
       <div className="mt-3 flex flex-1 flex-col gap-1">
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

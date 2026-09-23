@@ -12,6 +12,8 @@ export default function ShopPage({
 }: {
   searchParams: { q?: string };
 }) {
+  const query = searchParams.q ?? "";
+
   return (
     <div className="container-page py-10 sm:py-14">
       <div className="mb-8">
@@ -23,7 +25,12 @@ export default function ShopPage({
           everyday essentials to standout pieces.
         </p>
       </div>
-      <ShopClient allProducts={products} initialQuery={searchParams.q ?? ""} />
+      {/*
+        `key` forces ShopClient to remount whenever the ?q= param changes, so a
+        new search from the navbar / mobile menu while already on /shop updates
+        the results instead of being ignored (initialQuery is only read once).
+      */}
+      <ShopClient key={query} allProducts={products} initialQuery={query} />
     </div>
   );
 }

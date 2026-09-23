@@ -9,7 +9,18 @@ import QuantitySelector from "@/components/QuantitySelector";
 import { useCart } from "@/context/CartContext";
 
 export default function CartItem({ line, product }: { line: CartLine; product: Product }) {
-  const { updateQuantity, removeFromCart } = useCart();
+  const { lines, updateQuantity, removeFromCart } = useCart();
+
+  // Stock is shared across a product's color/size variants, so this line's
+  // ceiling is the stock minus whatever the other variants already hold.
+  const othersInCart = lines
+    .filter(
+      (l) =>
+        l.productId === product.id &&
+        !(l.color === line.color && l.size === line.size)
+    )
+    .reduce((sum, l) => sum + l.quantity, 0);
+  const maxQuantity = Math.max((product.stock ?? 99) - othersInCart, 1);
 
   return (
     <div className="flex gap-4 border-b border-border py-5 last:border-0">
@@ -46,6 +57,7 @@ export default function CartItem({ line, product }: { line: CartLine; product: P
         <div className="flex items-center justify-between">
           <QuantitySelector
             quantity={line.quantity}
+            max={maxQuantity}
             onChange={(q) => updateQuantity(product.id, q, line.color, line.size)}
           />
           <p className="text-sm font-semibold text-foreground sm:text-base">
