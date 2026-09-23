@@ -5,10 +5,12 @@ import { ArrowRight, ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { products } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
+import {
+  FREE_SHIPPING_THRESHOLD,
+  calculateShipping,
+  roundMoney,
+} from "@/lib/pricing";
 import CartItem from "@/components/CartItem";
-
-const FREE_SHIPPING_THRESHOLD = 50;
-const SHIPPING_COST = 6.99;
 
 export default function CartClient() {
   const { lines, subtotal, isHydrated } = useCart();
@@ -46,8 +48,8 @@ export default function CartClient() {
     );
   }
 
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
-  const total = subtotal + shipping;
+  const shipping = calculateShipping(subtotal);
+  const total = roundMoney(subtotal + shipping);
 
   return (
     <div className="container-page py-10 sm:py-14">
@@ -89,13 +91,13 @@ export default function CartClient() {
             <span>Estimated Total</span>
             <span>{formatPrice(total)}</span>
           </div>
-          <button
-            type="button"
+          <Link
+            href="/checkout"
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             Proceed to Checkout
             <ArrowRight className="h-4 w-4" />
-          </button>
+          </Link>
           <Link
             href="/shop"
             className="mt-3 block text-center text-xs font-medium text-muted-foreground hover:text-primary"

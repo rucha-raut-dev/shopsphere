@@ -88,7 +88,7 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
           type="button"
           onClick={() => {
             addToCart(product.id, quantity, color, size);
-            router.push("/cart");
+            router.push("/checkout");
           }}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-foreground/20 px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
         >
