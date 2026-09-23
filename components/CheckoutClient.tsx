@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useFormState } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,27 +13,23 @@ import {
   Lock,
   ShoppingBag,
 } from "lucide-react";
-import type { Order, PaymentMethod, ShippingAddress } from "@/lib/types";
+import type { PaymentMethod, ShippingAddress } from "@/lib/types";
 import { products } from "@/data/products";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import { calculateShipping, roundMoney } from "@/lib/pricing";
-import { createOrderId, getOrdersForEmail, saveOrder } from "@/lib/orders";
+import { getOrdersForEmail, saveOrder } from "@/lib/orders";
+import {
+  SHIPPING_FIELD_ORDER as FIELD_ORDER,
+  validateShippingAddress as validate,
+  type ShippingFieldErrors as FormErrors,
+} from "@/lib/shipping-validation";
+import { placeOrder } from "@/app/actions/checkout";
+import { CHECKOUT_INITIAL_STATE } from "@/app/actions/checkout.types";
 import { cn, formatPrice } from "@/lib/utils";
 
-type FormErrors = Partial<Record<keyof ShippingAddress, string>>;
-
-const INITIAL_FORM: ShippingAddress = {
-  fullName: "",
-  email: "",
-  phone: "",
-  address: "",
-  city: "",
-  state: "",
-  postalCode: "",
-  country: "United States",
-};
+const INITIAL_FORM: ShippingAddress = CHECKOUT_INITIAL_STATE.values;
 
 const COUNTRIES = [
   "United States",
@@ -43,40 +40,9 @@ const COUNTRIES = [
   "Other",
 ];
 
-// Order matters: on a failed submit we focus the first invalid field in this order.
-const FIELD_ORDER: Array<keyof ShippingAddress> = [
-  "fullName",
-  "email",
-  "phone",
-  "address",
-  "city",
-  "state",
-  "postalCode",
-  "country",
-];
-
 // True while the user hasn't typed anything, so autofill never overwrites their input.
 function isPristine(form: ShippingAddress): boolean {
   return FIELD_ORDER.every((key) => form[key] === INITIAL_FORM[key]);
-}
-
-function validate(form: ShippingAddress): FormErrors {
-  const errors: FormErrors = {};
-  const phoneDigits = form.phone.replace(/\D/g, "");
-
-  if (form.fullName.trim().length < 2) errors.fullName = "Please enter your full name.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
-    errors.email = "Enter a valid email address.";
-  if (!/^[+\d\s\-()]+$/.test(form.phone) || phoneDigits.length < 7 || phoneDigits.length > 15)
-    errors.phone = "Enter a valid phone number (7 to 15 digits).";
-  if (form.address.trim().length < 5) errors.address = "Please enter your street address.";
-  if (form.city.trim().length < 2) errors.city = "Please enter your city.";
-  if (form.state.trim().length < 2) errors.state = "Please enter your state or region.";
-  if (!/^[A-Za-z0-9][A-Za-z0-9\s-]{2,9}$/.test(form.postalCode.trim()))
-    errors.postalCode = "Enter a valid postal code.";
-  if (!form.country) errors.country = "Please choose a country.";
-
-  return errors;
 }
 
 const inputClass = (hasError: boolean) =>
@@ -124,6 +90,40 @@ export default function CheckoutClient() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isPlacing, setIsPlacing] = useState(false);
 
+  // The Server Action recomputes prices/stock itself, so it only needs the
+  // raw cart lines (product id + quantity + variant) — bind them in now.
+  // Everything else (prevState, formData) is supplied automatically by
+  // useFormState on every submit.
+  const [checkoutState, checkoutAction] = useFormState(
+    placeOrder.bind(null, lines),
+    CHECKOUT_INITIAL_STATE
+  );
+
+  // Runs whenever the server responds. Success -> persist the *server's*
+  // order object (never one built from client state) and redirect. Error ->
+  // surface it and stop the "placing order" spinner.
+  useEffect(() => {
+    if (checkoutState.status === "success" && checkoutState.order) {
+      if (!saveOrder(checkoutState.order)) {
+        showToast("We couldn't save your order. Please try again.", "error");
+        setIsPlacing(false);
+        return;
+      }
+      clearCart();
+      router.push(`/order-confirmation/${checkoutState.order.id}`);
+      return;
+    }
+
+    if (checkoutState.status === "error") {
+      setErrors((prev) => ({ ...prev, ...checkoutState.fieldErrors }));
+      if (checkoutState.formError) {
+        showToast(checkoutState.formError, "error");
+      }
+      setIsPlacing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutState]);
+
   // Signed-in users get their details prefilled: the address from their most
   // recent order if they have one, otherwise just their name and email.
   useEffect(() => {
@@ -163,60 +163,30 @@ export default function CheckoutClient() {
     className: inputClass(Boolean(errors[key])),
   });
 
+  // Fast, client-side validation for instant feedback and focus handling.
+  // This is a UX nicety only — it is NOT the source of truth. The Server
+  // Action re-validates everything (and recomputes pricing from scratch)
+  // before an order is ever created, so this check can't be bypassed by
+  // disabling JS or editing the DOM.
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (isPlacing) return;
+    if (isPlacing) {
+      e.preventDefault();
+      return;
+    }
 
     const nextErrors = validate(form);
     setErrors(nextErrors);
 
     const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]);
     if (firstInvalid) {
+      e.preventDefault();
       document.getElementById(`checkout-${firstInvalid}`)?.focus();
       return;
     }
 
-    const order: Order = {
-      id: createOrderId(),
-      createdAt: new Date().toISOString(),
-      lines: items.map(({ line, product }) => ({
-        productId: product.id,
-        name: product.name,
-        slug: product.slug,
-        image: product.image,
-        price: product.price,
-        quantity: line.quantity,
-        color: line.color,
-        size: line.size,
-      })),
-      subtotal,
-      shipping,
-      total,
-      customer: {
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        address: form.address.trim(),
-        city: form.city.trim(),
-        state: form.state.trim(),
-        postalCode: form.postalCode.trim(),
-        country: form.country,
-      },
-      paymentMethod,
-    };
-
+    // No preventDefault here: the form's `action` (checkoutAction) takes
+    // over and submits to the Server Action.
     setIsPlacing(true);
-
-    // Short artificial delay so the "placing order" state is visible, like a real request.
-    window.setTimeout(() => {
-      if (!saveOrder(order)) {
-        showToast("We couldn't save your order. Please try again.", "error");
-        setIsPlacing(false);
-        return;
-      }
-      clearCart();
-      router.push(`/order-confirmation/${order.id}`);
-    }, 700);
   };
 
   if (!isHydrated) {
@@ -268,6 +238,7 @@ export default function CheckoutClient() {
       <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_380px]">
         <form
           id="checkout-form"
+          action={checkoutAction}
           onSubmit={handleSubmit}
           noValidate
           className="space-y-8"
