@@ -15,6 +15,15 @@ import { useToast } from "@/context/ToastContext";
 const ACCOUNTS_KEY = "shopsphere-accounts";
 const SESSION_KEY = "shopsphere-session";
 
+// Middleware runs on the server/edge, before any page JS executes, so it
+// can only ever see cookies and headers on the incoming request — it has
+// no access to localStorage at all (that's a browser-only API). This cookie
+// exists purely so middleware.ts can answer "is someone signed in?" It only
+// ever holds "1", never the user's name/email — that data still lives in
+// localStorage (SESSION_KEY above) and is read by AuthProvider like before.
+const AUTH_COOKIE = "ss-auth";
+const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
 type StoredAccount = User & { createdAt: string };
 
 export type AuthResult = { ok: true } | { ok: false; error: string };
@@ -47,6 +56,13 @@ function writeSession(user: User | null) {
   } catch {
     // storage unavailable, the session just won't persist across reloads
   }
+
+  if (user) {
+    document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${AUTH_COOKIE_MAX_AGE}; samesite=lax`;
+  } else {
+    // max-age=0 deletes the cookie immediately.
+    document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  }
 }
 
 const firstNameOf = (name: string) => name.trim().split(" ")[0];
@@ -67,6 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           typeof parsed.email === "string"
         ) {
           setUser({ name: parsed.name, email: parsed.email });
+          // Re-sync the cookie in case it expired/was cleared independently
+          // of localStorage (e.g. an existing session from before this
+          // cookie existed at all) — keeps middleware's view consistent
+          // with what the client already considers "signed in".
+          document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${AUTH_COOKIE_MAX_AGE}; samesite=lax`;
         }
       }
     } catch {

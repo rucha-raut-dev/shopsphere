@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ShoppingBag } from "lucide-react";
+import { ArrowRight, LogIn, ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { products } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -14,8 +15,9 @@ import CartItem from "@/components/CartItem";
 
 export default function CartClient() {
   const { lines, subtotal, isHydrated } = useCart();
+  const { user, isHydrated: authReady } = useAuth();
 
-  if (!isHydrated) {
+  if (!isHydrated || !authReady) {
     return (
       <div className="container-page py-10 sm:py-14">
         <div className="h-9 w-40 animate-pulse rounded-lg bg-muted" />
@@ -92,12 +94,30 @@ export default function CartClient() {
             <span>{formatPrice(total)}</span>
           </div>
           <Link
-            href="/checkout"
+            href={user ? "/checkout" : "/account?mode=signin&redirect=/checkout"}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
-            Proceed to Checkout
-            <ArrowRight className="h-4 w-4" />
+            {user ? (
+              <>
+                Proceed to Checkout
+                <ArrowRight className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                Sign In to Checkout
+                <LogIn className="h-4 w-4" />
+              </>
+            )}
           </Link>
+          {!user && (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              An account is required to check out.{" "}
+              <Link href="/account?mode=signup&redirect=/checkout" className="font-medium text-primary hover:underline">
+                Create one
+              </Link>{" "}
+              — it only takes a name and email.
+            </p>
+          )}
           <Link
             href="/shop"
             className="mt-3 block text-center text-xs font-medium text-muted-foreground hover:text-primary"

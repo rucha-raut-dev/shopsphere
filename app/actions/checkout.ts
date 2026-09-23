@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import type { CartLine, Order, OrderLine, PaymentMethod, ShippingAddress } from "@/lib/types";
 import { products } from "@/data/products";
 import { calculateShipping, roundMoney } from "@/lib/pricing";
@@ -24,6 +25,20 @@ export async function placeOrder(
   prevState: CheckoutFormState,
   formData: FormData
 ): Promise<CheckoutFormState> {
+  // middleware.ts already blocks GET requests to /checkout for signed-out
+  // visitors, but a Server Action is still technically its own endpoint —
+  // someone could in principle invoke it directly. Checking the same
+  // cookie here too means the "sign-in required to check out" rule is
+  // enforced even if that ever happened, not just when navigating normally.
+  if (!cookies().has("ss-auth")) {
+    return {
+      status: "error",
+      fieldErrors: {},
+      formError: "Please sign in to place an order.",
+      values: prevState.values,
+    };
+  }
+
   const shippingAddress: ShippingAddress = {
     fullName: String(formData.get("fullName") ?? "").trim(),
     email: String(formData.get("email") ?? "").trim(),

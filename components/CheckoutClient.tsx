@@ -248,13 +248,13 @@ export default function CheckoutClient() {
               <h2 className="font-serif text-lg font-medium text-foreground">
                 Contact &amp; shipping
               </h2>
-              {authReady && !user && (
-                <Link
-                  href="/account?mode=signin"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Have an account? Sign in to autofill
-                </Link>
+                            {/* Middleware guarantees a signed-in user by the time this
+                  page renders (checkout requires an account), so `user`
+                  is only null for the instant before auth hydrates. */}
+              {authReady && user && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  Signed in as {user.email}
+                </span>
               )}
             </div>
 

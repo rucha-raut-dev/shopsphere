@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Heart, PackageOpen } from "lucide-react";
 import type { Order, User } from "@/lib/types";
@@ -19,7 +20,25 @@ const inputClass = (hasError: boolean) =>
     hasError ? "border-accent" : "border-border"
   );
 
-export default function AccountClient({ mode }: { mode: Mode }) {
+// `redirectTo` comes straight from a query string, so treat it as
+// untrusted input: only ever follow it if it's a same-site path (starts
+// with a single "/", never "//" — that's the classic open-redirect trick,
+// since browsers treat "//evil.com" as protocol-relative). Anything else
+// falls back to the account dashboard.
+function safeRedirect(redirectTo: string | undefined): string {
+  if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    return redirectTo;
+  }
+  return "/account";
+}
+
+export default function AccountClient({
+  mode,
+  redirectTo,
+}: {
+  mode: Mode;
+  redirectTo?: string;
+}) {
   const { user, isHydrated } = useAuth();
 
   if (!isHydrated) {
@@ -33,12 +52,21 @@ export default function AccountClient({ mode }: { mode: Mode }) {
     );
   }
 
-  return user ? <AccountDashboard user={user} /> : <AuthForm mode={mode} />;
+  return user ? (
+    <AccountDashboard user={user} />
+  ) : (
+    <AuthForm mode={mode} redirectTo={redirectTo} />
+  );
 }
 
-function AuthForm({ mode }: { mode: Mode }) {
+function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
   const { signIn, signUp } = useAuth();
+  const router = useRouter();
   const isSignup = mode === "signup";
+  // Checkout is the only place that currently links here with a redirect,
+  // so this is a safe (if slightly specific) way to tailor the copy —
+  // worth generalizing if another protected route starts doing the same.
+  const fromCheckout = redirectTo?.startsWith("/checkout") ?? false;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,7 +86,13 @@ function AuthForm({ mode }: { mode: Mode }) {
     }
 
     const result = isSignup ? signUp(name, email) : signIn(email);
-    // On success the provider sets `user`, which swaps this form for the dashboard.
+    // On success the provider sets `user`. If we arrived here via a
+    // middleware redirect (e.g. from /checkout), send them right back to
+    // where they were headed instead of stranding them on /account.
+    if (result.ok) {
+      if (redirectTo) router.push(safeRedirect(redirectTo));
+      return;
+    }
     if (!result.ok) setErrors({ form: result.error });
   };
 
@@ -66,12 +100,14 @@ function AuthForm({ mode }: { mode: Mode }) {
     <div className="container-page py-10 sm:py-14">
       <div className="mx-auto max-w-md">
         <h1 className="font-serif text-3xl font-medium text-foreground sm:text-4xl">
-          {isSignup ? "Create your account" : "Welcome back"}
+          {isSignup ? "Create your account" : fromCheckout ? "Sign in to check out" : "Welcome back"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {isSignup
             ? "Save your details for faster checkout and keep track of your orders."
-            : "Sign in to see your orders and check out faster."}
+            : fromCheckout
+              ? "An account keeps your order history in one place. Sign in to continue."
+              : "Sign in to see your orders and check out faster."}
         </p>
 
         <form
@@ -152,7 +188,10 @@ function AuthForm({ mode }: { mode: Mode }) {
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {isSignup ? "Already have an account? " : "New to ShopSphere? "}
           <Link
-            href={isSignup ? "/account?mode=signin" : "/account?mode=signup"}
+            href={
+              (isSignup ? "/account?mode=signin" : "/account?mode=signup") +
+              (redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : "")
+            }
             className="font-semibold text-primary hover:underline"
           >
             {isSignup ? "Sign in" : "Create an account"}

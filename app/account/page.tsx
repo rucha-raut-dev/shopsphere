@@ -10,12 +10,14 @@ export const metadata: Metadata = {
 export default function AccountPage({
   searchParams,
 }: {
-  searchParams: { mode?: string };
+  searchParams: { mode?: string; redirect?: string };
 }) {
   const mode = searchParams.mode === "signup" ? "signup" : "signin";
 
   // The URL is the single source of truth for which form is showing, so the
   // navbar links and the in-page toggle always agree. `key` remounts the
   // form (clearing its fields) when the mode changes.
-  return <AccountClient key={mode} mode={mode} />;
+  return (
+    <AccountClient key={mode} mode={mode} redirectTo={searchParams.redirect} />
+  );
 }
