@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { ArrowRight, Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useAuth } from "@/context/AuthContext";
 import MobileMenu from "@/components/MobileMenu";
 import SearchSuggestions from "@/components/SearchSuggestions";
+import { useProductSuggestions } from "@/lib/useProductSuggestions";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -30,8 +31,11 @@ export default function Navbar() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const { results: suggestions, status: suggestionStatus } = useProductSuggestions(searchValue);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -61,15 +65,53 @@ export default function Navbar() {
     };
   }, [searchOpen, accountOpen]);
 
+  // Focus the search input the moment the panel opens. This used to be a
+  // plain `searchInputRef.current?.focus()`, but the panel was hidden with
+  // Tailwind's `invisible` class (`visibility: hidden`) — and browsers
+  // refuse to focus an element that's still visibility:hidden, even for a
+  // single frame. That's what forced a second click to actually type.
+  // Fix has two parts: (1) the panel is now hidden with opacity/pointer-events
+  // instead of visibility (see the className below), which alone resolves
+  // it, and (2) we still wait a frame here as a safety net for the browser
+  // to finish applying the new styles before we call .focus().
   useEffect(() => {
-    if (searchOpen) searchInputRef.current?.focus();
+    if (!searchOpen) return;
+    const raf = requestAnimationFrame(() => searchInputRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
   }, [searchOpen]);
+
+  // A fresh query invalidates whatever was highlighted before.
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchValue]);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    // Enter with a suggestion highlighted (via arrow keys) jumps straight
+    // to that product. Otherwise it falls back to a full search.
+    const active = activeIndex >= 0 ? suggestions[activeIndex] : undefined;
+    if (active) {
+      router.push(`/products/${active.slug}`);
+      setSearchValue("");
+      setSearchOpen(false);
+      return;
+    }
     if (searchValue.trim()) {
       router.push(`/shop?q=${encodeURIComponent(searchValue.trim())}`);
       setSearchOpen(false);
+    }
+  };
+
+  // Arrow keys move the highlight through the live suggestions; Enter is
+  // handled by the form's onSubmit above (submitSearch reads activeIndex).
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
     }
   };
 
@@ -128,44 +170,85 @@ export default function Navbar() {
               }}
               aria-label="Toggle search"
               aria-expanded={searchOpen}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200",
+                searchOpen
+                  ? "scale-105 bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                  : "text-foreground hover:scale-105 hover:bg-primary/10 hover:text-primary"
+              )}
             >
-              {searchOpen ? <X className="h-[18px] w-[18px]" /> : <Search className="h-[18px] w-[18px]" />}
+              {searchOpen ? (
+                <X className="h-[18px] w-[18px]" />
+              ) : (
+                <Search className="h-[18px] w-[18px]" />
+              )}
             </button>
+
             <div
               className={cn(
                 "absolute right-0 top-12 origin-top-right transition-all duration-200",
+                // Hidden with opacity + pointer-events, NOT `invisible`
+                // (visibility:hidden) — that's the actual fix for the
+                // "have to click twice" bug. An element that's merely
+                // transparent and unclickable can still be focused
+                // programmatically; a visibility:hidden one cannot.
                 searchOpen
-                  ? "visible scale-100 opacity-100"
-                  : "pointer-events-none invisible scale-95 opacity-0"
+                  ? "scale-100 opacity-100"
+                  : "pointer-events-none scale-95 opacity-0"
               )}
             >
-              <div className="w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
+              <div className="w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-lift ring-1 ring-primary/10 sm:w-96">
                 <form
                   onSubmit={submitSearch}
-                  className="flex items-center gap-2 p-1.5 pl-4"
+                  className="flex items-center gap-2.5 border-b border-border px-4 py-3"
                 >
-                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Search className="h-4 w-4 shrink-0 text-primary" />
                   <input
                     ref={searchInputRef}
                     type="text"
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
+                    onKeyDown={onSearchKeyDown}
                     placeholder="Search for products..."
                     aria-label="Search products"
-                    className="w-full border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground focus:ring-0"
+                    role="combobox"
+                    aria-expanded={suggestions.length > 0}
+                    aria-controls="navbar-search-results"
+                    aria-activedescendant={
+                      activeIndex >= 0 ? `search-suggestion-${activeIndex}` : undefined
+                    }
+                    tabIndex={searchOpen ? 0 : -1}
+                    className="w-full border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
                   />
                   <button
                     type="submit"
-                    className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                    tabIndex={searchOpen ? 0 : -1}
+                    aria-label="Search"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/40 transition-all duration-150 hover:scale-110 hover:shadow-md hover:shadow-primary/50 active:scale-95"
                   >
-                    Go
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </form>
+
                 <SearchSuggestions
                   query={searchValue}
-                  onNavigate={() => setSearchOpen(false)}
+                  results={suggestions}
+                  status={suggestionStatus}
+                  activeIndex={activeIndex}
+                  onHover={setActiveIndex}
+                  onNavigate={() => {
+                    setSearchValue("");
+                    setSearchOpen(false);
+                  }}
                 />
+
+                {suggestions.length > 0 && (
+                  <div className="flex items-center justify-center gap-3 border-t border-border bg-muted/50 px-4 py-2 text-[11px] text-muted-foreground">
+                    <span><kbd className="rounded border border-border bg-card px-1 py-0.5 font-sans">↑↓</kbd> Navigate</span>
+                    <span><kbd className="rounded border border-border bg-card px-1 py-0.5 font-sans">↵</kbd> Select</span>
+                    <span><kbd className="rounded border border-border bg-card px-1 py-0.5 font-sans">Esc</kbd> Close</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
