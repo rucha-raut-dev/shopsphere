@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Search, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -15,6 +16,9 @@ const LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
+const linkClass =
+  "rounded-lg px-3 py-3 text-base font-medium text-foreground transition-colors hover:bg-muted";
+
 export default function MobileMenu({
   open,
   onClose,
@@ -23,6 +27,7 @@ export default function MobileMenu({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const [searchValue, setSearchValue] = useState("");
 
   const submitSearch = (e: React.FormEvent) => {
@@ -36,9 +41,11 @@ export default function MobileMenu({
 
   return (
     <div
+      // `invisible` when closed removes the whole menu from the tab order
+      // (transition on visibility too, so the fade-out still plays).
       className={cn(
-        "fixed inset-0 z-[90] transition-opacity duration-300 md:hidden",
-        open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        "fixed inset-0 z-[90] transition-[opacity,visibility] duration-300 md:hidden",
+        open ? "visible pointer-events-auto opacity-100" : "invisible pointer-events-none opacity-0"
       )}
       aria-hidden={!open}
     >
@@ -77,12 +84,10 @@ export default function MobileMenu({
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder="Search for products..."
               aria-label="Search products"
-              tabIndex={open ? 0 : -1}
               className="w-full border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground focus:ring-0"
             />
             <button
               type="submit"
-              tabIndex={open ? 0 : -1}
               className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
             >
               Go
@@ -90,18 +95,45 @@ export default function MobileMenu({
           </div>
         </form>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
           {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={onClose}
-              className="rounded-lg px-3 py-3 text-base font-medium text-foreground transition-colors hover:bg-muted"
-            >
+            <Link key={link.href} href={link.href} onClick={onClose} className={linkClass}>
               {link.label}
             </Link>
           ))}
         </nav>
+
+        <div className="border-t border-border px-3 py-4">
+          {user ? (
+            <>
+              <p className="truncate px-3 pb-2 text-xs text-muted-foreground">
+                Signed in as {user.email}
+              </p>
+              <Link href="/account" onClick={onClose} className={cn(linkClass, "block")}>
+                My Orders
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  signOut();
+                  onClose();
+                }}
+                className={cn(linkClass, "block w-full text-left")}
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/account?mode=signin" onClick={onClose} className={cn(linkClass, "block")}>
+                Sign In
+              </Link>
+              <Link href="/account?mode=signup" onClick={onClose} className={cn(linkClass, "block")}>
+                Create Account
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

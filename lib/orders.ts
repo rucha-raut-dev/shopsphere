@@ -26,6 +26,15 @@ export function getOrderById(id: string): Order | null {
   return getOrders().find((o) => o.id === id) ?? null;
 }
 
+// Orders are matched to an account by the email used at checkout
+// (case-insensitive). Newest first, because saveOrder prepends.
+export function getOrdersForEmail(email: string): Order[] {
+  const target = email.trim().toLowerCase();
+  return getOrders().filter(
+    (o) => o.customer.email.trim().toLowerCase() === target
+  );
+}
+
 // Returns false if the order couldn't be persisted (storage full/blocked).
 export function saveOrder(order: Order): boolean {
   try {

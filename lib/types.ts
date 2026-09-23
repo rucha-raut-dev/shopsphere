@@ -90,3 +90,8 @@ export type Order = {
   customer: ShippingAddress;
   paymentMethod: PaymentMethod;
 };
+
+export type User = {
+  name: string;
+  email: string;
+};

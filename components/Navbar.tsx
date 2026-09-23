@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useAuth } from "@/context/AuthContext";
 import MobileMenu from "@/components/MobileMenu";
 import { cn } from "@/lib/utils";
 
@@ -17,15 +18,51 @@ const LINKS = [
   { href: "/about", label: "About" },
 ];
 
+const menuItemClass =
+  "block w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted";
+
 export default function Navbar() {
   const { itemCount } = useCart();
   const { count } = useWishlist();
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
+
+  // Close either dropdown when clicking outside it or pressing Escape.
+  useEffect(() => {
+    if (!searchOpen && !accountOpen) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (searchOpen && !searchRef.current?.contains(target)) setSearchOpen(false);
+      if (accountOpen && !accountRef.current?.contains(target)) setAccountOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+        setAccountOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [searchOpen, accountOpen]);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +71,8 @@ export default function Navbar() {
       setSearchOpen(false);
     }
   };
+
+  const closeAccount = () => setAccountOpen(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
@@ -56,10 +95,13 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-1">
-          <div className="relative hidden sm:block">
+          <div ref={searchRef} className="relative hidden sm:block">
             <button
               type="button"
-              onClick={() => setSearchOpen((v) => !v)}
+              onClick={() => {
+                setSearchOpen((v) => !v);
+                setAccountOpen(false);
+              }}
               aria-label="Toggle search"
               aria-expanded={searchOpen}
               className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
@@ -70,8 +112,8 @@ export default function Navbar() {
               className={cn(
                 "absolute right-0 top-12 origin-top-right transition-all duration-200",
                 searchOpen
-                  ? "scale-100 opacity-100"
-                  : "pointer-events-none scale-95 opacity-0"
+                  ? "visible scale-100 opacity-100"
+                  : "pointer-events-none invisible scale-95 opacity-0"
               )}
             >
               <form
@@ -80,7 +122,7 @@ export default function Navbar() {
               >
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
-                  autoFocus={searchOpen}
+                  ref={searchInputRef}
                   type="text"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
@@ -124,52 +166,78 @@ export default function Navbar() {
             )}
           </Link>
 
-          <div className="relative hidden sm:block">
+          <div ref={accountRef} className="relative hidden sm:block">
             <button
               type="button"
-              onClick={() => setAccountOpen((v) => !v)}
-              aria-label="Account menu"
+              onClick={() => {
+                setAccountOpen((v) => !v);
+                setSearchOpen(false);
+              }}
+              aria-label={user ? `Account menu for ${user.name}` : "Account menu"}
               aria-expanded={accountOpen}
               className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
             >
-              <User className="h-[18px] w-[18px]" />
+              {user ? (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold uppercase text-primary-foreground">
+                  {user.name.trim().charAt(0)}
+                </span>
+              ) : (
+                <User className="h-[18px] w-[18px]" />
+              )}
             </button>
             <div
               className={cn(
-                "absolute right-0 top-12 w-48 origin-top-right rounded-xl border border-border bg-card p-2 shadow-lift transition-all duration-200",
+                "absolute right-0 top-12 w-52 origin-top-right rounded-xl border border-border bg-card p-2 shadow-lift transition-all duration-200",
                 accountOpen
-                  ? "scale-100 opacity-100"
-                  : "pointer-events-none scale-95 opacity-0"
+                  ? "visible scale-100 opacity-100"
+                  : "pointer-events-none invisible scale-95 opacity-0"
               )}
               role="menu"
             >
-              <p className="px-3 py-2 text-xs font-medium text-muted-foreground">
-                Guest browsing
-              </p>
-              <button
-                type="button"
-                role="menuitem"
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
-                onClick={() => setAccountOpen(false)}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
-                onClick={() => setAccountOpen(false)}
-              >
-                Create Account
-              </button>
-              <Link
-                href="/wishlist"
-                role="menuitem"
-                className="block w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
-                onClick={() => setAccountOpen(false)}
-              >
-                My Wishlist
-              </Link>
+              {user ? (
+                <div className="px-3 py-2">
+                  <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              ) : (
+                <p className="px-3 py-2 text-xs font-medium text-muted-foreground">
+                  Guest browsing
+                </p>
+              )}
+
+              {user ? (
+                <>
+                  <Link href="/account" role="menuitem" className={menuItemClass} onClick={closeAccount}>
+                    My Orders
+                  </Link>
+                  <Link href="/wishlist" role="menuitem" className={menuItemClass} onClick={closeAccount}>
+                    My Wishlist
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={menuItemClass}
+                    onClick={() => {
+                      signOut();
+                      closeAccount();
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/account?mode=signin" role="menuitem" className={menuItemClass} onClick={closeAccount}>
+                    Sign In
+                  </Link>
+                  <Link href="/account?mode=signup" role="menuitem" className={menuItemClass} onClick={closeAccount}>
+                    Create Account
+                  </Link>
+                  <Link href="/wishlist" role="menuitem" className={menuItemClass} onClick={closeAccount}>
+                    My Wishlist
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
