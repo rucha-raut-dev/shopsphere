@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,18 @@ export default function MobileMenu({
   const { user, signOut } = useAuth();
   const [searchValue, setSearchValue] = useState("");
 
+  // Lock background scroll while the menu is open, so the page behind can't
+  // move/scroll underneath the (partially transparent) backdrop — that
+  // movement is what was reading as page content "mixing" with the menu.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchValue.trim();
@@ -41,22 +53,34 @@ export default function MobileMenu({
 
   return (
     <div
-      // `invisible` when closed removes the whole menu from the tab order
-      // (transition on visibility too, so the fade-out still plays).
+      // No opacity fade on this outer wrapper — it used to fade the whole
+      // menu in together, which meant the "solid" white panel was briefly
+      // semi-transparent too, letting the page behind show through and
+      // overlap with the menu's own text. Only the backdrop fades now; the
+      // panel is always fully opaque and just slides in via transform.
+      // `visible`/`invisible` still toggles instantly (no transition on it)
+      // so closed menu items are removed from the keyboard tab order.
       className={cn(
-        "fixed inset-0 z-[90] transition-[opacity,visibility] duration-300 md:hidden",
-        open ? "visible pointer-events-auto opacity-100" : "invisible pointer-events-none opacity-0"
+        "fixed inset-0 z-[90] h-dvh w-screen md:hidden",
+        open ? "visible pointer-events-auto" : "invisible pointer-events-none"
       )}
       aria-hidden={!open}
     >
       <div
-        className="absolute inset-0 bg-black/40"
+        className={cn(
+          "absolute inset-0 bg-black/40 transition-opacity duration-300",
+          open ? "opacity-100" : "opacity-0"
+        )}
         onClick={onClose}
         aria-hidden="true"
       />
       <div
         className={cn(
-          "absolute right-0 top-0 flex h-full w-[82%] max-w-sm flex-col bg-background shadow-lift transition-transform duration-300",
+          // h-dvh instead of h-full: an explicit height (100% of the
+          // *dynamic* viewport) that doesn't depend on any ancestor's
+          // resolved height, which is more robust across browsers/DevTools
+          // device emulation than a percentage-height chain.
+          "absolute right-0 top-0 flex h-dvh w-[72%] max-w-xs flex-col overflow-hidden bg-background shadow-lift transition-transform duration-300",
           open ? "translate-x-0" : "translate-x-full"
         )}
         role="dialog"
