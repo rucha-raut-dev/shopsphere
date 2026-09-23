@@ -8,9 +8,11 @@ import { discountPercent, formatPrice } from "@/lib/utils";
 import { getStockStatus } from "@/lib/stock";
 import WishlistButton from "@/components/WishlistButton";
 import { useCart } from "@/context/CartContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const { showToast } = useToast();
   const discount = discountPercent(product.price, product.originalPrice);
   const outOfStock = getStockStatus(product.stock).state === "out";
 
@@ -66,11 +68,12 @@ export default function ProductCard({ product }: { product: Product }) {
           <button
             type="button"
             disabled={outOfStock}
-            onClick={() =>
+            onClick={() => {
               // Use the same defaults as the product page so the same item
               // never ends up as two separate cart lines.
-              addToCart(product.id, 1, product.colors?.[0], product.sizes?.[0])
-            }
+              addToCart(product.id, 1, product.colors?.[0], product.sizes?.[0]);
+              showToast(`${product.name} added to cart`, "success");
+            }}
             aria-label={`Add ${product.name} to cart`}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground/95 py-2.5 text-xs font-semibold uppercase tracking-wide text-white shadow-lift backdrop-blur transition-colors hover:bg-primary focus-visible:bg-primary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-foreground/95"
           >

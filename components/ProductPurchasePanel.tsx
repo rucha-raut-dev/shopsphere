@@ -9,9 +9,11 @@ import { getStockStatus } from "@/lib/stock";
 import QuantitySelector from "@/components/QuantitySelector";
 import WishlistButton from "@/components/WishlistButton";
 import { useCart } from "@/context/CartContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function ProductPurchasePanel({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const { showToast } = useToast();
   const router = useRouter();
   const [color, setColor] = useState(product.colors?.[0]);
   const [size, setSize] = useState(product.sizes?.[0]);
@@ -93,7 +95,10 @@ export default function ProductPurchasePanel({ product }: { product: Product }) 
           <>
             <button
               type="button"
-              onClick={() => addToCart(product.id, quantity, color, size)}
+              onClick={() => {
+                addToCart(product.id, quantity, color, size);
+                showToast(`${product.name} added to cart`, "success");
+              }}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 hover:bg-primary-light"
             >
               <ShoppingBag className="h-4 w-4" />
