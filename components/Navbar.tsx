@@ -2,15 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useAuth } from "@/context/AuthContext";
-import MobileMenu from "@/components/MobileMenu";
 import SearchSuggestions from "@/components/SearchSuggestions";
 import { useProductSuggestions } from "@/lib/useProductSuggestions";
 import { cn } from "@/lib/utils";
+
+// MobileMenu is never needed until someone actually taps the hamburger
+// icon — on desktop it's never needed at all. Importing it normally would
+// still bundle its code into every page's initial JS anyway, even for
+// visitors who never open it. `next/dynamic` instead puts it in its own
+// separate chunk that only gets fetched the first time it's rendered.
+//
+// `ssr: false` is the other half of this: it tells Next not to render
+// MobileMenu's HTML on the server at all. That's not just an optimization
+// here — it's necessary, because `ssr: false` is only valid inside a
+// Client Component ("use client", which this file already is), never in a
+// Server Component. A pure overlay like this one has nothing worth
+// search engines indexing anyway, so skipping SSR for it is free.
+const MobileMenu = dynamic(() => import("@/components/MobileMenu"), {
+  ssr: false,
+});
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -34,6 +50,13 @@ export default function Navbar() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // MobileMenu only needs to exist in the DOM (and its lazy chunk only
+  // needs to be fetched) once someone actually taps the hamburger icon —
+  // before that, mounting it would pay for the dynamic import with
+  // nothing to show for it. Once mounted, it stays mounted so `open`
+  // toggling on/off still gets its slide-in/out CSS transition instead of
+  // instantly appearing/disappearing.
+  const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
 
   const { results: suggestions, status: suggestionStatus } = useProductSuggestions(searchValue);
 
@@ -356,7 +379,10 @@ export default function Navbar() {
 
           <button
             type="button"
-            onClick={() => setMobileOpen(true)}
+            onClick={() => {
+              setMobileMenuMounted(true);
+              setMobileOpen(true);
+            }}
             aria-label="Open menu"
             className="flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted md:hidden"
           >
@@ -365,7 +391,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      <MobileMenu open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      {mobileMenuMounted && (
+        <MobileMenu open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      )}
     </header>
   );
 }
