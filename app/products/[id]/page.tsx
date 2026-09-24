@@ -6,9 +6,9 @@ import { getProductBySlug, getRelatedProducts, products } from "@/data/products"
 import { discountPercent, formatPrice } from "@/lib/utils";
 import ProductGallery from "@/components/ProductGallery";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
+import ProductReviews from "@/components/ProductReviews";
 import SectionHeading from "@/components/SectionHeading";
 import ProductGrid from "@/components/ProductGrid";
-
 export function generateStaticParams() {
   return products.map((p) => ({ id: p.slug }));
 }
@@ -143,6 +143,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           )}
         </div>
       </div>
+
+            <ProductReviews productId={product.id} />
 
       {related.length > 0 && (
         <section className="mt-16 border-t border-border pt-12">

@@ -95,3 +95,12 @@ export type User = {
   name: string;
   email: string;
 };
+
+export type Review = {
+  id: string;
+  productId: string;
+  name: string;
+  rating: number; // 1-5
+  comment: string;
+  createdAt: string; // ISO date string
+};
