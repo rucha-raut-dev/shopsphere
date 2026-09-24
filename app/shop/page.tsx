@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { products } from "@/data/products";
 import ShopClient from "@/components/ShopClient";
+import TrendingPicks from "@/components/TrendingPicks";
+import TrendingPicksSkeleton from "@/components/TrendingPicksSkeleton";
 
 export const metadata: Metadata = {
   title: "Shop All Products",
@@ -25,6 +28,24 @@ export default function ShopPage({
           everyday essentials to standout pieces.
         </p>
       </div>
+
+      {/*
+        TrendingPicks is a slow `async` Server Component. Without Suspense,
+        this whole page would wait for it before sending ANYTHING to the
+        browser — the heading above and the product grid below are both
+        ready instantly, but a visitor would still stare at a blank page
+        for over a second because of one unrelated, slower section.
+
+        With this boundary, Next streams the rest of the page immediately
+        and fills in TrendingPicksSkeleton's placeholder in its place, then
+        swaps in the real TrendingPicks HTML over that same connection the
+        moment it resolves — no extra client-side fetch, no loading spinner
+        the browser has to script itself.
+      */}
+      <Suspense fallback={<TrendingPicksSkeleton />}>
+        <TrendingPicks />
+      </Suspense>
+
       {/*
         `key` forces ShopClient to remount whenever the ?q= param changes, so a
         new search from the navbar / mobile menu while already on /shop updates
