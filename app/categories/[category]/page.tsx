@@ -10,6 +10,11 @@ export function generateStaticParams() {
   return categories.map((c) => ({ category: c.slug }));
 }
 
+// Same ISR pattern as the product detail page: pre-built at deploy time,
+// then eligible to regenerate in the background at most once an hour. See
+// the comment on app/products/[id]/page.tsx for the full explanation.
+export const revalidate = 3600; // seconds
+
 export function generateMetadata({
   params,
 }: {

@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import type { CartLine, Order, OrderLine, PaymentMethod, ShippingAddress } from "@/lib/types";
 import { products } from "@/data/products";
 import { calculateShipping, roundMoney } from "@/lib/pricing";
@@ -24,7 +25,8 @@ export async function placeOrder(
   cartLines: CartLine[],
   prevState: CheckoutFormState,
   formData: FormData
-): Promise<CheckoutFormState> {
+): Promise<CheckoutFormState>
+{
   // middleware.ts already blocks GET requests to /checkout for signed-out
   // visitors, but a Server Action is still technically its own endpoint —
   // someone could in principle invoke it directly. Checking the same
@@ -115,6 +117,7 @@ export async function placeOrder(
   // an order-service call, etc.
   await new Promise((resolve) => setTimeout(resolve, 700));
 
+  
   const order: Order = {
     id: createOrderId(),
     createdAt: new Date().toISOString(),
@@ -125,6 +128,22 @@ export async function placeOrder(
     customer: shippingAddress,
     paymentMethod,
   };
+
+  // On-demand revalidation: the OTHER half of the caching story, alongside
+  // the scheduled `revalidate = 3600` in the product/category pages. That
+  // ISR setting regenerates a page on a timer; this instead says "regenerate
+  // it right now, because something just changed." Placing an order is
+  // exactly the kind of event that would do that in a real app — it should
+  // reduce available stock, and the next visitor to that product page
+  // should see the new number immediately, not wait up to an hour for it.
+  //
+  // `data/products.ts` is a static file here, so stock never actually
+  // changes and these calls are inert — but this is precisely where you'd
+  // call them the moment stock became a real, mutable value in a database.
+  for (const line of orderLines) {
+    revalidatePath(`/products/${line.slug}`);
+  }
+  revalidatePath("/shop");
 
   return { status: "success", fieldErrors: {}, values: shippingAddress, order };
 }
