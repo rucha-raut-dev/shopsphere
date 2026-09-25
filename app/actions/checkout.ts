@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { revalidateTag } from "next/cache";
 import type { CartLine, Order, OrderLine, PaymentMethod, ShippingAddress } from "@/lib/types";
 import { products } from "@/data/products";
 import { calculateShipping, roundMoney } from "@/lib/pricing";
@@ -129,21 +129,28 @@ export async function placeOrder(
     paymentMethod,
   };
 
-  // On-demand revalidation: the OTHER half of the caching story, alongside
-  // the scheduled `revalidate = 3600` in the product/category pages. That
-  // ISR setting regenerates a page on a timer; this instead says "regenerate
-  // it right now, because something just changed." Placing an order is
-  // exactly the kind of event that would do that in a real app — it should
-  // reduce available stock, and the next visitor to that product page
-  // should see the new number immediately, not wait up to an hour for it.
+    // On-demand revalidation: the OTHER half of the caching story, alongside
+  // the scheduled `revalidate = 3600` in the product/category pages (and
+  // now in lib/products-cache.ts). That ISR setting regenerates a page on
+  // a timer; this instead says "invalidate this specific cache entry right
+  // now, because something just changed." Placing an order is exactly the
+  // kind of event that would do that in a real app — it should reduce
+  // available stock, and the next visitor to that product page should see
+  // the new number immediately, not wait up to an hour for it.
+  //
+  // Tags instead of paths: `revalidatePath("/products/slug")` only ever
+  // invalidates that one URL. `revalidateTag("product:slug")` invalidates
+  // every cache entry that was tagged with it, however many different
+  // pages read from it — here that's both app/products/[id]/page.tsx and
+  // the app/@modal quick-view route, from one call. The blanket "products"
+  // tag on top of that also covers /shop and every /categories/[category]
+  // page, since lib/products-cache.ts tags all of them with it too.
   //
   // `data/products.ts` is a static file here, so stock never actually
   // changes and these calls are inert — but this is precisely where you'd
   // call them the moment stock became a real, mutable value in a database.
   for (const line of orderLines) {
-    revalidatePath(`/products/${line.slug}`);
+    revalidateTag(`product:${line.slug}`);
   }
-  revalidatePath("/shop");
-
-  return { status: "success", fieldErrors: {}, values: shippingAddress, order };
+  revalidateTag("products");
 }

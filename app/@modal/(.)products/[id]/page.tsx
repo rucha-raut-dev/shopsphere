@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProductBySlug } from "@/data/products";
+import { getCachedProductBySlug } from "@/lib/products-cache";
 import Modal from "@/components/Modal";
 import QuickViewContent from "@/components/QuickViewContent";
 
@@ -17,12 +17,12 @@ import QuickViewContent from "@/components/QuickViewContent";
  * That's not a fallback we had to build; it's what "intercepting" means:
  * this route only exists for the soft-navigation case.
  */
-export default function ProductQuickViewModal({
+export default async function ProductQuickViewModal({
   params,
 }: {
   params: { id: string };
 }) {
-  const product = getProductBySlug(params.id);
+  const product = await getCachedProductBySlug(params.id);
   if (!product) notFound();
 
   return (

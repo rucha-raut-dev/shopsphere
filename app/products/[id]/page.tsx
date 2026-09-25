@@ -2,32 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, RefreshCcw, ShieldCheck, Star, Truck } from "lucide-react";
-import { getProductBySlug, getRelatedProducts, products } from "@/data/products";
+import { getRelatedProducts, products } from "@/data/products";
+import { getCachedProductBySlug } from "@/lib/products-cache";
 import { discountPercent, formatPrice } from "@/lib/utils";
 import ProductGallery from "@/components/ProductGallery";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import ProductReviews from "@/components/ProductReviews";
 import SectionHeading from "@/components/SectionHeading";
 import ProductGrid from "@/components/ProductGrid";
+
 export function generateStaticParams() {
   return products.map((p) => ({ id: p.slug }));
 }
 
-// ISR (Incremental Static Regeneration): this page is still pre-built at
-// deploy time for every slug above (that part hasn't changed), but Next
-// will now also regenerate a given product's HTML in the background at
-// most once per hour, the next time someone requests it after that window.
-// Visitors always get the fast, cached page instantly — nobody waits on
-// the regeneration, they just might see data that's up to an hour stale.
-//
-// Right now `data/products.ts` is a static file, so this has no visible
-// effect — the "data" never changes between regenerations. The moment
-// this became a real database query, though, this one line is what stops
-// a price or stock change from requiring a full redeploy to show up.
 export const revalidate = 3600; // seconds
 
-export function generateMetadata({ params }: { params: { id: string } }): Metadata {
-  const product = getProductBySlug(params.id);
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const product = await getCachedProductBySlug(params.id);
   if (!product) return { title: "Product Not Found" };
   return {
     title: product.name,
@@ -35,8 +26,8 @@ export function generateMetadata({ params }: { params: { id: string } }): Metada
   };
 }
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const product = getProductBySlug(params.id);
+export default async function ProductDetailPage({ params }: { params: { id: string } }) {
+  const product = await getCachedProductBySlug(params.id);
   if (!product) notFound();
 
   const discount = discountPercent(product.price, product.originalPrice);

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { categories } from "@/data/categories";
-import { getProductsByCategory } from "@/data/products";
+import { getCachedProductsByCategory } from "@/lib/products-cache";
 import ProductGrid from "@/components/ProductGrid";
 
 export function generateStaticParams() {
@@ -28,7 +28,7 @@ export function generateMetadata({
   };
 }
 
-export default function CategoryDetailPage({
+export default async function CategoryDetailPage({
   params,
 }: {
   params: { category: string };
@@ -36,7 +36,7 @@ export default function CategoryDetailPage({
   const category = categories.find((c) => c.slug === params.category);
   if (!category) notFound();
 
-  const categoryProducts = getProductsByCategory(category.slug);
+  const categoryProducts = await getCachedProductsByCategory(category.slug);
 
   return (
     <div className="container-page py-10 sm:py-14">
