@@ -25,8 +25,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -35,6 +37,14 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          {/*
+            The @modal parallel slot. It renders alongside `children`, not
+            instead of it — the page you were on stays mounted underneath,
+            which is exactly what makes this feel like a modal instead of
+            a navigation. app/@modal/default.tsx makes it render nothing
+            for every route that isn't the intercepted quick-view page.
+          */}
+          {modal}
         </Providers>
       </body>
     </html>
