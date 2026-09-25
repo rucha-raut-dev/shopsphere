@@ -31,12 +31,22 @@ const config: Config = {
         warning: "#C08A2E",
       },
       fontFamily: {
-        serif: ["Georgia", "Cambria", "Times New Roman", "serif"],
+        // var(--font-serif) / var(--font-sans) come from next/font in
+        // app/layout.tsx (Playfair Display / Inter). The old stack stays as
+        // a fallback for the brief moment before the variable is set, and
+        // for any rendering path that misses the html element's className.
+        serif: [
+          "var(--font-serif)",
+          "Georgia",
+          "Cambria",
+          "Times New Roman",
+          "serif",
+        ],
         sans: [
+          "var(--font-sans)",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
-          "Inter",
           "Helvetica Neue",
           "Arial",
           "sans-serif",
