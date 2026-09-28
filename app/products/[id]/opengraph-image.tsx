@@ -1,11 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getCachedProductBySlug } from "@/lib/products-cache";
 import { getAllProducts } from "@/lib/product-queries";
-
-export async function generateStaticParams() {
-  const products = await getAllProducts();
-  return products.map((p) => ({ id: p.slug }));
-}
 import { formatPrice } from "@/lib/utils";
 
 /**
@@ -13,7 +8,7 @@ import { formatPrice } from "@/lib/utils";
  * Next.js afterwards) instead of the one static app/opengraph-image.png
  * every other page falls back to. When a product link gets pasted into
  * iMessage, Slack, Twitter/X, etc., the preview card now actually shows
- * that product's photo, name and price — not a generic ShopSphere banner.
+ * that product's photo, name and price, not a generic ShopSphere banner.
  *
  * This file follows a naming convention Next.js recognizes automatically:
  * putting `opengraph-image.tsx` inside app/products/[id]/ means it's used
@@ -26,8 +21,9 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 // Pre-generate one of these for every product at build time, same as the
-// page itself does — see generateStaticParams in app/products/[id]/page.tsx.
-export function generateStaticParams() {
+// page itself does. Only ONE generateStaticParams per file is allowed.
+export async function generateStaticParams() {
+  const products = await getAllProducts();
   return products.map((p) => ({ id: p.slug }));
 }
 
