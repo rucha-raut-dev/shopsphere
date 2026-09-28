@@ -153,4 +153,6 @@ export async function placeOrder(
     revalidateTag(`product:${line.slug}`);
   }
   revalidateTag("products");
+
+  return { status: "success", fieldErrors: {}, values: shippingAddress, order };
 }
