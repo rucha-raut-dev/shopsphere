@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PaymentMethod {
+  cod
+  card
+}
+
+model Category {
+  id       String    @id
+  name     String
+  slug     String    @unique
+  label    String
+  image    String
+  products Product[]
+}
+
+model Product {
+  id            String    @id
+  name          String
+  slug          String    @unique
+  price         Decimal   @db.Decimal(10, 2)
+  originalPrice Decimal?  @db.Decimal(10, 2)
+  rating        Float
+  reviewCount   Int       @default(0)
+  image         String
+  images        String[]
+  description   String
+  details       String[]
+  colors        String[]
+  sizes         String[]
+  featured      Boolean   @default(false)
+  newArrival    Boolean   @default(false)
+  bestseller    Boolean   @default(false)
+  stock         Int?
+
+  categorySlug  String
+  category      Category  @relation(fields: [categorySlug], references: [slug])
+
+  reviews       Review[]
+  orderLines    OrderLine[]
+
+  @@index([categorySlug])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Order {
+  id            String        @id
+  createdAt     DateTime      @default(now())
+  subtotal      Decimal       @db.Decimal(10, 2)
+  shipping      Decimal       @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
+
+  fullName      String
+  email         String
+  phone         String
+  address       String
+  city          String
+  state         String
+  postalCode    String
+  country       String
+
+  lines         OrderLine[]
+
+  @@index([email])
+}
+
+model OrderLine {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  name      String
+  slug      String
+  image     String
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int
+  color     String?
+  size      String?
+}
