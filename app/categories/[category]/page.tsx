@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { categories } from "@/data/categories";
-import { getCachedProductsByCategory } from "@/lib/products-cache";
+import { getCachedCategories, getCachedProductsByCategory } from "@/lib/products-cache";
 import ProductGrid from "@/components/ProductGrid";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const categories = await getCachedCategories();
   return categories.map((c) => ({ category: c.slug }));
+
 }
 
 // Same ISR pattern as the product detail page: pre-built at deploy time,
@@ -15,11 +16,12 @@ export function generateStaticParams() {
 // the comment on app/products/[id]/page.tsx for the full explanation.
 export const revalidate = 3600; // seconds
 
-export function generateMetadata({
+export async function generateMetadata({
   params,
 }: {
   params: { category: string };
-}): Metadata {
+}): Promise<Metadata> {
+  const categories = await getCachedCategories();
   const category = categories.find((c) => c.slug === params.category);
   if (!category) return { title: "Category Not Found" };
   return {
@@ -33,6 +35,7 @@ export default async function CategoryDetailPage({
 }: {
   params: { category: string };
 }) {
+  const categories = await getCachedCategories();
   const category = categories.find((c) => c.slug === params.category);
   if (!category) notFound();
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { products } from "@/data/products";
-
+import { getAllProducts } from "@/lib/product-queries";
 // GET /api/products
 // GET /api/products?q=shirt
 // GET /api/products?category=fashion
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
     ? Math.max(1, Math.min(50, Number(limitParam) || 0))
     : undefined;
 
-  let results = products;
+  let results = await getAllProducts();
 
   if (category) {
     results = results.filter((p) => p.category === category);

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { products } from "@/data/products";
+import { getCachedProducts } from "@/lib/products-cache";
 import ProductGrid from "@/components/ProductGrid";
 
 export const metadata: Metadata = {
   title: "New Arrivals",
   description: "Shop the latest arrivals at ShopSphere — freshly added products across every category.",
 };
-
-export default function NewArrivalsPage() {
+export default async function NewArrivalsPage() {
+  const products = await getCachedProducts();
   const newArrivals = products.filter((p) => p.newArrival);
 
   return (

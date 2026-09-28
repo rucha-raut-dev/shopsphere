@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, RefreshCcw, ShieldCheck, Star, Truck } from "lucide-react";
-import { getRelatedProducts, products } from "@/data/products";
+import { getAllProducts, getRelatedProducts } from "@/lib/product-queries";
 import { getCachedProductBySlug } from "@/lib/products-cache";
 import { discountPercent, formatPrice } from "@/lib/utils";
 import ProductGallery from "@/components/ProductGallery";
@@ -11,9 +11,11 @@ import ProductReviews from "@/components/ProductReviews";
 import SectionHeading from "@/components/SectionHeading";
 import ProductGrid from "@/components/ProductGrid";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const products = await getAllProducts();
   return products.map((p) => ({ id: p.slug }));
 }
+
 
 export const revalidate = 3600; // seconds
 
@@ -31,8 +33,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
   if (!product) notFound();
 
   const discount = discountPercent(product.price, product.originalPrice);
-  const related = getRelatedProducts(product);
-
+ const related = await getRelatedProducts(product);
   return (
     <div className="container-page py-8 sm:py-12">
       <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground">

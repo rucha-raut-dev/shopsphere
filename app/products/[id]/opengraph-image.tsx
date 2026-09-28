@@ -1,6 +1,11 @@
 import { ImageResponse } from "next/og";
 import { getCachedProductBySlug } from "@/lib/products-cache";
-import { products } from "@/data/products";
+import { getAllProducts } from "@/lib/product-queries";
+
+export async function generateStaticParams() {
+  const products = await getAllProducts();
+  return products.map((p) => ({ id: p.slug }));
+}
 import { formatPrice } from "@/lib/utils";
 
 /**

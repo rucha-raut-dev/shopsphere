@@ -4,14 +4,17 @@ import CategoryCard from "@/components/CategoryCard";
 import ProductGrid from "@/components/ProductGrid";
 import SaleBanner from "@/components/SaleBanner";
 import Newsletter from "@/components/Newsletter";
-import { categories } from "@/data/categories";
-import { products } from "@/data/products";
+import { getCachedCategories, getCachedProducts } from "@/lib/products-cache";
 import { Headphones, RefreshCcw, ShieldCheck, Truck } from "lucide-react";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [categories, products] = await Promise.all([
+    getCachedCategories(),
+    getCachedProducts(),
+  ]);
   const featured = products.filter((p) => p.featured).slice(0, 8);
   const newArrivals = products.filter((p) => p.newArrival).slice(0, 4);
-
+  
   return (
     <>
       <Hero />

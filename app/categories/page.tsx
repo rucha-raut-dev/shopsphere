@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import CategoryCard from "@/components/CategoryCard";
-import { categories } from "@/data/categories";
+import { getCachedCategories } from "@/lib/products-cache";
 
 export const metadata: Metadata = {
   title: "Categories",
   description: "Browse ShopSphere by category — fashion, footwear, accessories, home and beauty.",
 };
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  const categories = await getCachedCategories();
   return (
     <div className="container-page py-10 sm:py-14">
       <div className="mb-8">

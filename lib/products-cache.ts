@@ -3,8 +3,9 @@ import {
   getAllProducts,
   getProductBySlug,
   getProductsByCategory,
+  getCategories 
 } from "@/lib/product-queries";
-import type { Product } from "./types";
+import type { Product , Category  } from "./types";
 
 // Same tag-based caching as before (see revalidateTag in
 // app/actions/checkout.ts). Only the data source changed: these now read
@@ -31,5 +32,12 @@ export async function getCachedProducts(): Promise<Product[]> {
     async () => getAllProducts(),
     ["all-products"],
     { tags: ["products"], revalidate: 3600 }
+  )();
+}
+export async function getCachedCategories(): Promise<Category[]> {
+  return unstable_cache(
+    async () => getCategories(),
+    ["all-categories"],
+    { tags: ["categories"], revalidate: 3600 }
   )();
 }
