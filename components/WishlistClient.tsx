@@ -5,12 +5,14 @@ import Link from "next/link";
 import { ArrowRight, Heart, ShoppingBag, Trash2 } from "lucide-react";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
-import { products } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
+// replace: import { products } from "@/data/products";
+import { useProductCatalog } from "@/context/ProductCatalogContext";
 
 export default function WishlistClient() {
   const { productIds, removeFromWishlist, isHydrated } = useWishlist();
   const { addToCart } = useCart();
+  const { products } = useProductCatalog();   // new line
 
   if (!isHydrated) {
     return (

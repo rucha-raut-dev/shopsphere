@@ -7,8 +7,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { CartLine } from "@/lib/types";
-import { products } from "@/data/products";
+import type { CartLine, Product } from "@/lib/types";
+import { useProductCatalog } from "@/context/ProductCatalogContext";
 import { useToast } from "@/context/ToastContext";
 
 const STORAGE_KEY = "shopsphere-cart";
@@ -34,7 +34,7 @@ function sameLine(a: CartLine, productId: string, color?: string, size?: string)
 
 // Stock is tracked per product, so the cap applies across all of its
 // color/size variants combined, not per individual cart line.
-function maxFor(productId: string): number {
+function maxFor(products: Product[], productId: string): number {
   const product = products.find((p) => p.id === productId);
   return product?.stock ?? DEFAULT_MAX_QTY;
 }
@@ -49,6 +49,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
   const { showToast } = useToast();
+  const { products } = useProductCatalog();
 
   useEffect(() => {
     try {
@@ -71,7 +72,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [lines, isHydrated]);
 
   const addToCart = (productId: string, quantity = 1, color?: string, size?: string) => {
-    const max = maxFor(productId);
+    const max = maxFor(products, productId);
 
     if (max <= 0) {
       showToast("Sorry, that item is out of stock", "error");
@@ -115,7 +116,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const othersInCart = prev
         .filter((l) => l.productId === productId && !sameLine(l, productId, color, size))
         .reduce((sum, l) => sum + l.quantity, 0);
-      const room = Math.max(maxFor(productId) - othersInCart, 1);
+      const room = Math.max(maxFor(products, productId) - othersInCart, 1);
       const next = quantity <= 0 ? 0 : Math.min(quantity, room);
 
       return prev
@@ -137,7 +138,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const product = products.find((p) => p.id === l.productId);
         return sum + (product ? product.price * l.quantity : 0);
       }, 0),
-    [lines]
+    [lines, products]
   );
 
   return (

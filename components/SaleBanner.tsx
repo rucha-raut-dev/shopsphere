@@ -13,7 +13,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import { products } from "@/data/products";
+import { useProductCatalog } from "@/context/ProductCatalogContext";
 import { discountPercent, formatPrice } from "@/lib/utils";
 
 const DEADLINE_KEY = "shopsphere-sale-deadline";
@@ -56,6 +56,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export default function SaleBanner() {
   // undefined until mounted, so the server-rendered markup never shows a
   // countdown that depends on the visitor's clock (avoids a hydration mismatch).
+  const { products } = useProductCatalog();
   const [timeLeft, setTimeLeft] = useState<TimeLeft | undefined>(undefined);
   const [percentElapsed, setPercentElapsed] = useState(0);
   const [saleEnded, setSaleEnded] = useState(false);
@@ -73,7 +74,8 @@ export default function SaleBanner() {
             (discountPercent(a.price, a.originalPrice) ?? 0)
         )
         .slice(0, 5),
-    []
+    [products]
+
   );
 
   const maxDiscount = saleProducts.reduce(

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowRight, LogIn, ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import { products } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
 import {
   FREE_SHIPPING_THRESHOLD,
@@ -12,10 +11,14 @@ import {
   roundMoney,
 } from "@/lib/pricing";
 import CartItem from "@/components/CartItem";
+// replace: import { products } from "@/data/products";
+import { useProductCatalog } from "@/context/ProductCatalogContext";
 
 export default function CartClient() {
   const { lines, subtotal, isHydrated } = useCart();
   const { user, isHydrated: authReady } = useAuth();
+  const { products } = useProductCatalog();   // new line
+  
 
   if (!isHydrated || !authReady) {
     return (
