@@ -135,6 +135,7 @@ export default function CheckoutClient() {
         setForm((prev) => (isPristine(prev) ? prefill : prev));
       })
       .catch(() => {
+        if (cancelled) return;
         setForm((prev) =>
           isPristine(prev) ? { ...INITIAL_FORM, fullName: user.name, email: user.email } : prev
         );
