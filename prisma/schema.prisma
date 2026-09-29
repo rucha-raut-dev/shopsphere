@@ -70,9 +70,7 @@ model Order {
   total         Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod
 
-  userId        String?
-  user          User?         @relation(fields: [userId], references: [id])
-
+  // Shipping snapshot, kept even if the user later changes their profile.
   fullName      String
   email         String
   phone         String
@@ -81,6 +79,10 @@ model Order {
   state         String
   postalCode    String
   country       String
+
+  // Optional so existing orders (placed before real auth) keep working.
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id])
 
   lines         OrderLine[]
 
@@ -95,6 +97,7 @@ model OrderLine {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
+  // Purchase-time snapshot, same idea as your OrderLine type
   name      String
   slug      String
   image     String
@@ -103,17 +106,21 @@ model OrderLine {
   color     String?
   size      String?
 }
+
 model User {
   id            String    @id @default(cuid())
-  name          String?
+  name          String
   email         String    @unique
+  passwordHash  String?
   emailVerified DateTime?
   image         String?
   createdAt     DateTime  @default(now())
+
   orders        Order[]
   accounts      Account[]
   sessions      Session[]
 }
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
