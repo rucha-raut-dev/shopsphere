@@ -14,12 +14,11 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import type { PaymentMethod, ShippingAddress } from "@/lib/types";
-import { products } from "@/data/products";
+import { useProductCatalog } from "@/context/ProductCatalogContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import { calculateShipping, roundMoney } from "@/lib/pricing";
-import { getOrdersForEmail, saveOrder } from "@/lib/orders";
 import {
   SHIPPING_FIELD_ORDER as FIELD_ORDER,
   validateShippingAddress as validate,
@@ -83,6 +82,7 @@ export default function CheckoutClient() {
   const { lines, subtotal, isHydrated, clearCart } = useCart();
   const { showToast } = useToast();
   const { user, isHydrated: authReady } = useAuth();
+  const { products } = useProductCatalog();
   const router = useRouter();
 
   const [form, setForm] = useState<ShippingAddress>(INITIAL_FORM);
@@ -104,11 +104,6 @@ export default function CheckoutClient() {
   // surface it and stop the "placing order" spinner.
   useEffect(() => {
     if (checkoutState.status === "success" && checkoutState.order) {
-      if (!saveOrder(checkoutState.order)) {
-        showToast("We couldn't save your order. Please try again.", "error");
-        setIsPlacing(false);
-        return;
-      }
       clearCart();
       router.push(`/order-confirmation/${checkoutState.order.id}`);
       return;
@@ -128,11 +123,25 @@ export default function CheckoutClient() {
   // recent order if they have one, otherwise just their name and email.
   useEffect(() => {
     if (!authReady || !user) return;
-    const latest = getOrdersForEmail(user.email)[0];
-    const prefill: ShippingAddress = latest
-      ? { ...latest.customer }
-      : { ...INITIAL_FORM, fullName: user.name, email: user.email };
-    setForm((prev) => (isPristine(prev) ? prefill : prev));
+    let cancelled = false;
+    fetch(`/api/orders?email=${encodeURIComponent(user.email)}`)
+      .then((res) => (res.ok ? res.json() : { orders: [] }))
+      .then((data) => {
+        if (cancelled) return;
+        const latest = data.orders?.[0];
+        const prefill: ShippingAddress = latest
+          ? { ...latest.customer }
+          : { ...INITIAL_FORM, fullName: user.name, email: user.email };
+        setForm((prev) => (isPristine(prev) ? prefill : prev));
+      })
+      .catch(() => {
+        setForm((prev) =>
+          isPristine(prev) ? { ...INITIAL_FORM, fullName: user.name, email: user.email } : prev
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [authReady, user]);
 
   // Cart lines joined with their product; drops any line whose product no longer exists.

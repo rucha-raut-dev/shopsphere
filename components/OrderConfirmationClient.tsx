@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, PackageSearch } from "lucide-react";
 import type { Order } from "@/lib/types";
-import { getOrderById } from "@/lib/orders";
 import { formatPrice } from "@/lib/utils";
 
 const PAYMENT_LABELS: Record<Order["paymentMethod"], string> = {
@@ -14,11 +13,22 @@ const PAYMENT_LABELS: Record<Order["paymentMethod"], string> = {
 };
 
 export default function OrderConfirmationClient({ orderId }: { orderId: string }) {
-  // undefined = still reading localStorage, null = no such order on this device.
+  // undefined = still loading, null = no such order.
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
 
   useEffect(() => {
-    setOrder(getOrderById(orderId));
+    let cancelled = false;
+    fetch(`/api/orders/${orderId}`)
+      .then((res) => (res.ok ? res.json() : { order: null }))
+      .then((data) => {
+        if (!cancelled) setOrder(data.order ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setOrder(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [orderId]);
 
   if (order === undefined) {
@@ -42,8 +52,8 @@ export default function OrderConfirmationClient({ orderId }: { orderId: string }
           We couldn&apos;t find that order
         </h1>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          Orders are saved in this browser only, so the link won&apos;t work on
-          another device or after clearing your site data.
+          Double-check the link, or it may have been placed under a different
+          account.
         </p>
         <Link
           href="/shop"

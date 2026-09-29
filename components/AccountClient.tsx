@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Heart, PackageOpen } from "lucide-react";
 import type { Order, User } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
-import { getOrdersForEmail } from "@/lib/orders";
 import { cn, formatPrice } from "@/lib/utils";
 
 type Mode = "signin" | "signup";
@@ -209,7 +208,18 @@ function AccountDashboard({ user }: { user: User }) {
   const email = user.email;
 
   useEffect(() => {
-    setOrders(getOrdersForEmail(email));
+    let cancelled = false;
+    fetch(`/api/orders?email=${encodeURIComponent(email)}`)
+      .then((res) => (res.ok ? res.json() : { orders: [] }))
+      .then((data) => {
+        if (!cancelled) setOrders(data.orders ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setOrders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [email]);
 
   const firstName = user.name.trim().split(" ")[0];
