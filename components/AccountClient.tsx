@@ -4,20 +4,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useFormState } from "react-dom";
+import { useSession } from "next-auth/react";
 import { ArrowRight, Heart, PackageOpen } from "lucide-react";
 import type { Order, User } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
+import { signInAction, signUpAction, type AuthActionState } from "@/app/actions/auth";
 import { cn, formatPrice } from "@/lib/utils";
 
 type Mode = "signin" | "signup";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const inputClass = (hasError: boolean) =>
   cn(
     "w-full rounded-lg border bg-background px-3.5 py-2.5 text-sm text-foreground focus:border-primary",
     hasError ? "border-accent" : "border-border"
   );
+
+const INITIAL_AUTH_STATE: AuthActionState = { status: "idle" };
 
 // `redirectTo` comes straight from a query string, so treat it as
 // untrusted input: only ever follow it if it's a same-site path (starts
@@ -59,41 +62,29 @@ export default function AccountClient({
 }
 
 function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
-  const { signIn, signUp } = useAuth();
   const router = useRouter();
+  const { update } = useSession();
   const isSignup = mode === "signup";
   // Checkout is the only place that currently links here with a redirect,
   // so this is a safe (if slightly specific) way to tailor the copy —
   // worth generalizing if another protected route starts doing the same.
   const fromCheckout = redirectTo?.startsWith("/checkout") ?? false;
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; email?: string; form?: string }>({});
+  const [state, formAction] = useFormState(
+    isSignup ? signUpAction : signInAction,
+    INITIAL_AUTH_STATE
+  );
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const next: typeof errors = {};
-    if (isSignup && name.trim().length < 2) next.name = "Please enter your full name.";
-    if (!EMAIL_RE.test(email.trim())) next.email = "Enter a valid email address.";
-
-    if (next.name || next.email) {
-      setErrors(next);
-      document.getElementById(next.name ? "auth-name" : "auth-email")?.focus();
-      return;
-    }
-
-    const result = isSignup ? signUp(name, email) : signIn(email);
-    // On success the provider sets `user`. If we arrived here via a
-    // middleware redirect (e.g. from /checkout), send them right back to
-    // where they were headed instead of stranding them on /account.
-    if (result.ok) {
-      if (redirectTo) router.push(safeRedirect(redirectTo));
-      return;
-    }
-    if (!result.ok) setErrors({ form: result.error });
-  };
+  useEffect(() => {
+    if (state.status !== "success") return;
+    // The Server Action already signed the session cookie in on the
+    // server; `update()` tells this tab's session to refetch it right
+    // away instead of waiting for the next automatic refresh.
+    update().then(() => {
+      router.push(safeRedirect(redirectTo));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <div className="container-page py-10 sm:py-14">
@@ -110,13 +101,12 @@ function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
         </p>
 
         <form
-          onSubmit={handleSubmit}
-          noValidate
+          action={formAction}
           className="mt-8 space-y-5 rounded-2xl border border-border bg-card p-6 sm:p-8"
         >
-          {errors.form && (
+          {state.status === "error" && state.error && (
             <p role="alert" className="rounded-lg bg-accent/10 px-3.5 py-2.5 text-sm text-accent">
-              {errors.form}
+              {state.error}
             </p>
           )}
 
@@ -127,22 +117,13 @@ function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
               </label>
               <input
                 id="auth-name"
+                name="name"
                 type="text"
                 autoComplete="name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
-                }}
-                aria-invalid={Boolean(errors.name)}
-                aria-describedby={errors.name ? "auth-name-error" : undefined}
-                className={inputClass(Boolean(errors.name))}
+                required
+                minLength={2}
+                className={inputClass(false)}
               />
-              {errors.name && (
-                <p id="auth-name-error" className="mt-1 text-xs text-accent">
-                  {errors.name}
-                </p>
-              )}
             </div>
           )}
 
@@ -152,22 +133,29 @@ function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
             </label>
             <input
               id="auth-email"
+              name="email"
               type="email"
               autoComplete="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (errors.email || errors.form)
-                  setErrors((p) => ({ ...p, email: undefined, form: undefined }));
-              }}
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? "auth-email-error" : undefined}
-              className={inputClass(Boolean(errors.email))}
+              required
+              className={inputClass(false)}
             />
-            {errors.email && (
-              <p id="auth-email-error" className="mt-1 text-xs text-accent">
-                {errors.email}
-              </p>
+          </div>
+
+          <div>
+            <label htmlFor="auth-password" className="mb-1.5 block text-sm font-medium text-foreground">
+              Password
+            </label>
+            <input
+              id="auth-password"
+              name="password"
+              type="password"
+              autoComplete={isSignup ? "new-password" : "current-password"}
+              required
+              minLength={8}
+              className={inputClass(false)}
+            />
+            {isSignup && (
+              <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>
             )}
           </div>
 
@@ -178,10 +166,6 @@ function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
             {isSignup ? "Create Account" : "Sign In"}
             <ArrowRight className="h-4 w-4" />
           </button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            Demo store: accounts are saved in this browser only and have no password.
-          </p>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -203,7 +187,7 @@ function AuthForm({ mode, redirectTo }: { mode: Mode; redirectTo?: string }) {
 
 function AccountDashboard({ user }: { user: User }) {
   const { signOut } = useAuth();
-  // undefined = still reading localStorage.
+  // undefined = still loading.
   const [orders, setOrders] = useState<Order[] | undefined>(undefined);
   const email = user.email;
 

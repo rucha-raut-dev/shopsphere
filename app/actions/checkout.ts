@@ -1,9 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidateTag } from "next/cache";
 import type { CartLine, Order, OrderLine, PaymentMethod, ShippingAddress } from "@/lib/types";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { calculateShipping, roundMoney } from "@/lib/pricing";
 import { createOrderId } from "@/lib/orders";
 import { validateShippingAddress } from "@/lib/shipping-validation";
@@ -23,7 +23,9 @@ export async function placeOrder(
   prevState: CheckoutFormState,
   formData: FormData
 ): Promise<CheckoutFormState> {
-  if (!cookies().has("ss-auth")) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
     return {
       status: "error",
       fieldErrors: {},
@@ -67,6 +69,18 @@ export async function placeOrder(
   for (const line of cartLines) {
     const product = dbProducts.find((p) => p.id === line.productId);
     if (!product) continue;
+
+    const available = product.stock ?? Infinity;
+
+    if (line.quantity > available) {
+      return {
+        status: "error",
+        fieldErrors: {},
+        formError: `Sorry, only ${available} of "${product.name}" ${available === 1 ? "is" : "are"} left in stock. Please update your cart and try again.`,
+        values: shippingAddress,
+      };
+    }
+
     if (line.quantity <= 0) continue;
 
     orderLines.push({
@@ -79,27 +93,6 @@ export async function placeOrder(
       color: line.color,
       size: line.size,
     });
-  }
-
-  const quantityByProductId = new Map<string, number>();
-  for (const line of orderLines) {
-    quantityByProductId.set(
-      line.productId,
-      (quantityByProductId.get(line.productId) ?? 0) + line.quantity
-    );
-  }
-
-  for (const [productId, quantity] of quantityByProductId) {
-    const product = dbProducts.find((p) => p.id === productId);
-    const available = product?.stock;
-    if (product && available != null && quantity > available) {
-      return {
-        status: "error",
-        fieldErrors: {},
-        formError: `Sorry, only ${available} of "${product.name}" ${available === 1 ? "is" : "are"} left in stock. Please update your cart and try again.`,
-        values: shippingAddress,
-      };
-    }
   }
 
   if (orderLines.length === 0) {
@@ -116,63 +109,55 @@ export async function placeOrder(
   const total = roundMoney(subtotal + shipping);
   const orderId = createOrderId();
 
-  const stockChanged = Symbol("stock-changed");
-  try {
-    // Conditional decrements protect against stock changing after the check
-    // above; throwing rolls back every decrement and the order together.
-    await db.$transaction(async (tx) => {
-      for (const [productId, quantity] of quantityByProductId) {
-        const product = dbProducts.find((p) => p.id === productId);
-        if (product?.stock == null) continue;
+  // Products with stock === null are treated as always available, so they
+  // don't get a decrement statement.
+  const stockUpdates = orderLines
+    .map((l) => {
+      const product = dbProducts.find((p) => p.id === l.productId);
+      return product?.stock != null
+        ? db.product.update({
+            where: { id: l.productId },
+            data: { stock: { decrement: l.quantity } },
+          })
+        : null;
+    })
+    .filter((u): u is NonNullable<typeof u> => u !== null);
 
-        const result = await tx.product.updateMany({
-          where: { id: productId, stock: { gte: quantity } },
-          data: { stock: { decrement: quantity } },
-        });
-        if (result.count !== 1) throw stockChanged;
-      }
-
-      await tx.order.create({
-        data: {
-          id: orderId,
-          subtotal,
-          shipping,
-          total,
-          paymentMethod,
-          fullName: shippingAddress.fullName,
-          email: shippingAddress.email,
-          phone: shippingAddress.phone,
-          address: shippingAddress.address,
-          city: shippingAddress.city,
-          state: shippingAddress.state,
-          postalCode: shippingAddress.postalCode,
-          country: shippingAddress.country,
-          lines: {
-            create: orderLines.map((l) => ({
-              productId: l.productId,
-              name: l.name,
-              slug: l.slug,
-              image: l.image,
-              price: l.price,
-              quantity: l.quantity,
-              color: l.color,
-              size: l.size,
-            })),
-          },
+  // One transaction: the order, its lines, and every stock decrement either
+  // all happen together, or none of them do.
+  await db.$transaction([
+    db.order.create({
+      data: {
+        id: orderId,
+        subtotal,
+        shipping,
+        total,
+        paymentMethod,
+        userId: session.user.id,
+        fullName: shippingAddress.fullName,
+        email: shippingAddress.email,
+        phone: shippingAddress.phone,
+        address: shippingAddress.address,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        postalCode: shippingAddress.postalCode,
+        country: shippingAddress.country,
+        lines: {
+          create: orderLines.map((l) => ({
+            productId: l.productId,
+            name: l.name,
+            slug: l.slug,
+            image: l.image,
+            price: l.price,
+            quantity: l.quantity,
+            color: l.color,
+            size: l.size,
+          })),
         },
-      });
-    });
-  } catch (error) {
-    return {
-      status: "error",
-      fieldErrors: {},
-      formError:
-        error === stockChanged
-          ? "Stock changed while you were placing your order. Please review your cart and try again."
-          : "We couldn't place your order right now. Please try again.",
-      values: shippingAddress,
-    };
-  }
+      },
+    }),
+    ...stockUpdates,
+  ]);
 
   const order: Order = {
     id: orderId,
