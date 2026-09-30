@@ -1,23 +1,16 @@
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { authConfig } from "@/auth.config";
 
-// Kept in sync with the cookie name AuthContext writes on sign-in/sign-out.
-const AUTH_COOKIE = "ss-auth";
+// A second, edge-safe NextAuth instance built only from the shared config
+// in auth.config.ts. Unlike lib/auth.ts, this one never touches Prisma or
+// bcrypt, so it can run in the Edge runtime middleware requires — it's only
+// used here to verify the signed session cookie. Real sign-in still goes
+// through lib/auth.ts and the Server Actions in app/actions/auth.ts.
+const { auth } = NextAuth(authConfig);
 
-/**
- * Runs on the server, before the matched page (or any of its data) loads —
- * unlike a client-side redirect in a page/component, this can't be skipped
- * by disabling JS, and it never even lets the checkout page's HTML reach
- * the browser for a signed-out visitor.
- *
- * The trade-off that makes this possible: middleware only ever sees the
- * incoming request's cookies and headers, never localStorage (that's a
- * browser-only API). That's exactly why AuthContext now also writes a
- * small "ss-auth=1" cookie alongside its localStorage session — this file
- * is the reason that cookie exists at all.
- */
-export function middleware(request: NextRequest) {
-  const isAuthenticated = request.cookies.has(AUTH_COOKIE);
+export default auth((request) => {
+  const isAuthenticated = !!request.auth;
   const { pathname, search } = request.nextUrl;
 
   // Checkout requires an account. Send signed-out visitors to sign in,
@@ -40,7 +33,7 @@ export function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
-}
+});
 
 // Only run this middleware for the two paths it actually cares about —
 // it would be wasted work (and wasted latency) on every other route.
