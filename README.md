@@ -2,8 +2,6 @@
 
 A premium, modern e-commerce demo built with **Next.js (App Router)**, **React**, **TypeScript**, and **Tailwind CSS**.
 
-ShopSphere is a frontend-focused project created to practice and demonstrate modern **Next.js and React concepts** using local/static data. It does not require a backend, database, authentication service, or paid APIs.
-
 ## Getting Started
 
 Install the dependencies:
@@ -262,71 +260,7 @@ Dynamic product and category routes also handle invalid URLs using custom not-fo
 
 ---
 
-## Images
 
-Product images are rendered using Next.js's optimized:
-
-```tsx
-next/image
-```
-
-Images are currently sourced from **Unsplash** and configured through `next.config.js`.
-
-For a production application, the image URLs can be replaced with locally hosted or production-ready assets.
-
----
-
-## Project Limitations
-
-ShopSphere is intentionally a frontend-only demo.
-
-* No backend
-* No database
-* No external authentication
-* No real payment processing
-* No external product API
-* Cart, wishlist, and orders use browser LocalStorage
-* Orders are stored per browser/device
-
-Because orders are stored locally, an order confirmation URL will only work on the browser/device where the order was created.
-
----
-
-## Learning Purpose
-
-This project was created as a practical way to learn and demonstrate **Next.js App Router concepts alongside React, TypeScript, and Tailwind CSS**.
-
-The focus is on understanding:
-
-* How Next.js routing works
-* When to use Server vs Client Components
-* Dynamic routes
-* Metadata generation
-* Loading and error handling
-* Client-side state management
-* Context API
-* LocalStorage
-* Form validation
-* Reusable components
-* Responsive UI architecture
-
----
-
-## Future Improvements
-
-Possible future enhancements include:
-
-* Backend/API integration
-* Database integration
-* User authentication
-* Real payment gateway
-* Product reviews
-* Server-side cart persistence
-* Admin dashboard
-* Real product search API
-* Order management system
-
----
 
 ## License
 
